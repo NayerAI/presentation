@@ -1,27 +1,41 @@
 # Auto-Advancing Presentations
 
-A small self-hosted web app for running PDF slide decks that advance on their
-own timer. You (the admin) upload PDFs, set how long each slide stays on
-screen, and start/pause them from a control console. The slides themselves
-play in a **separate browser tab** so you can drag that tab onto a second
-screen / projector.
+A small self-hosted web app with two sides:
+
+- A **student practice site** (public) where students upload their own deck and
+  rehearse it against a fixed pace — the slides auto-advance so they practise
+  speaking along.
+- An **admin dashboard** (password-protected) for running PDF decks on a
+  projector and for setting the pace students practise against.
+
+## The three pages
+
+| URL | Who | What |
+| --- | --- | --- |
+| `/` | Students (public) | Upload a PDF and practise. The deck auto-advances at the admin's pace, with a 3-2-1 countdown. The file **stays in the browser** and is never uploaded. |
+| `/admin` | Admin (password) | Upload/manage decks, run them, and set the student practice pace. |
+| `/present` | Second screen | Slides-only display for admin-run presentations; drag it to your projector. |
 
 ## Features
 
-- **Upload many PDFs at once** — select or drop several files together and
-  each becomes its own presentation, titled after its file name (rename later
-  in the timings editor).
-- **Per-slide timing** — set one duration for the whole deck, or fine-tune
-  every slide individually in the timings editor (with thumbnails).
-- **Separate display tab** (`/present`) meant for your second screen. It shows
-  only the slides — no controls — and follows the console in real time.
-- **3-2-1 countdown** on the display whenever you press *Start*.
-- **Live controls**: play / pause / resume, next / previous slide, restart,
-  and stop, all reflected instantly on the display via Server-Sent Events.
-- **Toggle the display progress bar** on or off from the console; the choice is
-  saved and applied to the presentation view live.
-- The server is the source of truth, so the console and the display stay in
-  sync even if you reload either tab.
+**Student practice site (`/`)**
+- Students pick their own PDF (kept entirely client-side) and press *Start*.
+- The deck auto-advances at the admin-set **seconds per slide**, after a
+  3-2-1 countdown, so students rehearse speaking to the pace.
+- A HUD shows the current slide, elapsed vs. target time, and a per-slide
+  progress bar; pause/resume, next/previous, restart and fullscreen are all
+  available (space / arrow keys work too).
+
+**Admin dashboard (`/admin`, behind a password)**
+- **Set the practice pace** (seconds per slide) for the student site.
+- **Upload many PDFs at once** — each becomes its own presentation, titled
+  after its file name.
+- **Per-slide timing** — one duration for the whole deck or per-slide in the
+  timings editor (with thumbnails).
+- **Run decks on a second screen** via the separate display tab (`/present`),
+  with a 3-2-1 countdown, live play / pause / next / previous / restart / stop,
+  and a toggle for the display's progress bar — all synced over Server-Sent
+  Events.
 
 The interface uses a retro pixel-terminal look built with the bundled,
 open-source (SIL OFL) fonts **VT323** and **Silkscreen** — no external
@@ -36,14 +50,19 @@ npm start
 
 Then open:
 
-- **Console** (upload & control): http://localhost:3000/
-- **Display** (put this on your second screen): http://localhost:3000/present
+- **Student practice**: http://localhost:3000/
+- **Admin dashboard**: http://localhost:3000/admin
+- **Display** (second screen): http://localhost:3000/present
 
-From the console, click **“Open display tab”** to pop the display out into its
-own tab/window, then move it to your projector or second monitor. Press
-**Start** on any deck and the display counts down 3 → 2 → 1 and begins.
+Log in to `/admin` with the admin password, set the practice pace, and
+(optionally) upload decks to run on a projector via **“Open display tab”**.
 
-Set the port with the `PORT` environment variable (defaults to `3000`).
+### Configuration (environment variables)
+
+- `ADMIN_PASSWORD` — password for the `/admin` dashboard. **Defaults to
+  `changeme`; set your own before deploying.**
+- `PORT` — port to listen on (defaults to `3000`).
+- `DATA_DIR` — where persistent data is stored (defaults to `./data`).
 
 ## How it works
 

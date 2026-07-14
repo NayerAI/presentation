@@ -367,8 +367,6 @@ function animate() {
 }
 requestAnimationFrame(animate);
 
-connectPlayback(applyState);
-
 /* ------------------------------------------------------------------ *
  * Open display tab
  * ------------------------------------------------------------------ */
@@ -390,6 +388,95 @@ function flashOpenHint() {
 }
 
 /* ------------------------------------------------------------------ *
- * Boot
+ * Student practice settings
  * ------------------------------------------------------------------ */
-refreshLibrary();
+const practiceSecondsInput = $('#practiceSeconds');
+const practiceMsg = $('#practiceMsg');
+
+async function loadPracticeConfig() {
+  try {
+    const cfg = await (await fetch('/api/practice-config')).json();
+    if (cfg.perSlideSeconds) practiceSecondsInput.value = cfg.perSlideSeconds;
+  } catch {
+    /* ignore */
+  }
+}
+
+$('#savePractice').addEventListener('click', async () => {
+  const practiceSeconds = Math.max(1, Number(practiceSecondsInput.value) || 30);
+  practiceMsg.textContent = 'Saving…';
+  practiceMsg.className = 'upload-msg';
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ practiceSeconds }),
+    });
+    if (!res.ok) throw new Error('Save failed');
+    practiceSecondsInput.value = practiceSeconds;
+    practiceMsg.textContent = 'Saved ✓';
+    practiceMsg.className = 'upload-msg success';
+  } catch (err) {
+    practiceMsg.textContent = err.message;
+    practiceMsg.className = 'upload-msg error';
+  }
+});
+
+/* ------------------------------------------------------------------ *
+ * Auth gate + boot
+ * ------------------------------------------------------------------ */
+const loginGate = $('#loginGate');
+const dashboard = $('#dashboard');
+const loginForm = $('#loginForm');
+const loginMsg = $('#loginMsg');
+
+let sseConnected = false;
+function initDashboard() {
+  loginGate.hidden = true;
+  dashboard.hidden = false;
+  refreshLibrary();
+  loadPracticeConfig();
+  if (!sseConnected) {
+    connectPlayback(applyState);
+    sseConnected = true;
+  }
+}
+
+function showLogin() {
+  dashboard.hidden = true;
+  loginGate.hidden = false;
+  $('#loginPassword').focus();
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  loginMsg.textContent = '';
+  const password = $('#loginPassword').value;
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    if (!res.ok) throw new Error('Incorrect password');
+    initDashboard();
+  } catch (err) {
+    loginMsg.textContent = err.message;
+    loginMsg.className = 'upload-msg error';
+  }
+});
+
+$('#logoutBtn').addEventListener('click', async () => {
+  await fetch('/api/admin/logout', { method: 'POST' });
+  showLogin();
+});
+
+(async function boot() {
+  try {
+    const { authed } = await (await fetch('/api/admin/session')).json();
+    if (authed) initDashboard();
+    else showLogin();
+  } catch {
+    showLogin();
+  }
+})();

@@ -17,6 +17,11 @@ const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 const DB_FILE = path.join(DATA_DIR, 'presentations.json');
 const COUNTDOWN_SECONDS = 3;
 
+// Password for the admin dashboard. Override in production via app.env / env.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'changeme';
+// Default pace for the student practice site (seconds per slide).
+const PRACTICE_DEFAULT_SECONDS = 30;
+
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
 /* ------------------------------------------------------------------ *
@@ -45,7 +50,7 @@ const findPresentation = (id) => presentations.find((p) => p.id === id);
  * auto-advance progress bar). Persisted so they survive restarts and are
  * part of the ./data backup. */
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
-const DEFAULT_SETTINGS = { showProgress: true };
+const DEFAULT_SETTINGS = { showProgress: true, practiceSeconds: PRACTICE_DEFAULT_SECONDS };
 
 function loadSettings() {
   try {
@@ -59,6 +64,37 @@ let settings = loadSettings();
 
 async function saveSettings() {
   await fsp.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+}
+
+// A stable secret is needed to sign admin session cookies. Generate one on
+// first run and persist it so sessions survive restarts.
+if (!settings.sessionSecret) {
+  settings.sessionSecret = crypto.randomBytes(32).toString('hex');
+  saveSettings().catch(() => {});
+}
+
+/* ------------------------------------------------------------------ *
+ * Admin authentication — a single password gate. The session cookie is
+ * an HMAC of the (persisted) secret, so it is stateless and unforgeable.
+ * ------------------------------------------------------------------ */
+function adminToken() {
+  return crypto.createHmac('sha256', settings.sessionSecret).update('admin-session-v1').digest('hex');
+}
+
+function parseCookies(req) {
+  const out = {};
+  (req.headers.cookie || '').split(';').forEach((pair) => {
+    const i = pair.indexOf('=');
+    if (i > -1) out[pair.slice(0, i).trim()] = decodeURIComponent(pair.slice(i + 1).trim());
+  });
+  return out;
+}
+
+const isAdmin = (req) => parseCookies(req).admin_session === adminToken();
+
+function requireAdmin(req, res, next) {
+  if (isAdmin(req)) return next();
+  res.status(401).json({ error: 'Authentication required' });
 }
 
 /* Best-effort page count straight from the PDF bytes. The admin page
@@ -309,11 +345,36 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/vendor/pdfjs', express.static(path.join(__dirname, 'node_modules', 'pdfjs-dist')));
 
 // Pages
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html'))); // student practice
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/present', (req, res) => res.sendFile(path.join(__dirname, 'public', 'present.html')));
 
-/* --- Presentation CRUD -------------------------------------------- */
-app.get('/api/presentations', (req, res) => {
+/* --- Admin auth --------------------------------------------------- */
+app.post('/api/admin/login', (req, res) => {
+  if ((req.body.password || '') === ADMIN_PASSWORD) {
+    res.setHeader(
+      'Set-Cookie',
+      `admin_session=${adminToken()}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${7 * 24 * 3600}`
+    );
+    return res.json({ ok: true });
+  }
+  res.status(401).json({ error: 'Incorrect password' });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.setHeader('Set-Cookie', 'admin_session=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0');
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/session', (req, res) => res.json({ authed: isAdmin(req) }));
+
+/* --- Public config for the student practice site ------------------ */
+app.get('/api/practice-config', (req, res) => {
+  res.json({ perSlideSeconds: settings.practiceSeconds, countdownSeconds: COUNTDOWN_SECONDS });
+});
+
+/* --- Presentation CRUD (admin only) ------------------------------- */
+app.get('/api/presentations', requireAdmin, (req, res) => {
   res.json(presentations);
 });
 
@@ -327,7 +388,7 @@ app.get('/api/presentations/:id', (req, res) => {
 // presentation, titled after its file name. The admin page supplies a
 // per-file page count (via pdf.js) and per-file slide durations as JSON
 // arrays aligned with the file order.
-app.post('/api/presentations', upload.array('files', 100), async (req, res) => {
+app.post('/api/presentations', requireAdmin, upload.array('files', 100), async (req, res) => {
   const files = req.files || [];
   if (!files.length) return res.status(400).json({ error: 'No PDF uploaded' });
 
@@ -370,7 +431,7 @@ app.post('/api/presentations', upload.array('files', 100), async (req, res) => {
   res.status(201).json(created);
 });
 
-app.put('/api/presentations/:id', async (req, res) => {
+app.put('/api/presentations/:id', requireAdmin, async (req, res) => {
   const p = findPresentation(req.params.id);
   if (!p) return res.status(404).json({ error: 'Not found' });
 
@@ -393,7 +454,7 @@ app.put('/api/presentations/:id', async (req, res) => {
   res.json(p);
 });
 
-app.delete('/api/presentations/:id', async (req, res) => {
+app.delete('/api/presentations/:id', requireAdmin, async (req, res) => {
   const idx = presentations.findIndex((p) => p.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Not found' });
 
@@ -417,20 +478,23 @@ app.get('/api/presentations/:id/file', (req, res) => {
   res.sendFile(file);
 });
 
-/* --- Display settings --------------------------------------------- */
-app.put('/api/settings', async (req, res) => {
+/* --- Settings (admin only) ---------------------------------------- */
+app.put('/api/settings', requireAdmin, async (req, res) => {
   if (typeof req.body.showProgress === 'boolean') {
     settings.showProgress = req.body.showProgress;
   }
+  if (req.body.practiceSeconds != null) {
+    settings.practiceSeconds = Math.max(1, Number(req.body.practiceSeconds) || settings.practiceSeconds);
+  }
   await saveSettings();
   broadcast();
-  res.json(settings);
+  res.json({ showProgress: settings.showProgress, practiceSeconds: settings.practiceSeconds });
 });
 
 /* --- Playback control --------------------------------------------- */
 app.get('/api/state', (req, res) => res.json(publicState()));
 
-app.post('/api/control/:action', (req, res) => {
+app.post('/api/control/:action', requireAdmin, (req, res) => {
   const { action } = req.params;
   let result;
   switch (action) {

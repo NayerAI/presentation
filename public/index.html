@@ -3,114 +3,101 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Presentation Console</title>
+    <title>Practice · Presentation Timing</title>
     <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9E%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%93%3C/text%3E%3C/svg%3E" />
   </head>
   <body class="admin">
-    <div class="page">
+    <div class="page" id="setup">
       <!-- Header -->
       <header class="card brand-card">
         <div class="brand">
           <span class="brand-mark">&#9654;</span>
           <div>
-            <h1 class="pixel-title">AUTODECK</h1>
-            <p class="subtitle">Auto-advancing presentation console</p>
+            <h1 class="pixel-title">AUTODECK &mdash; Practice</h1>
+            <p class="subtitle">Rehearse your talk against the set pace</p>
           </div>
         </div>
-        <div class="topbar-actions">
-          <label class="switch" title="Show or hide the auto-advance progress bar on the presentation display">
-            <input type="checkbox" id="progressToggle" checked />
-            <span class="switch-track"><span class="switch-thumb"></span></span>
-            <span class="switch-label">Progress bar</span>
-          </label>
-          <button id="openDisplay" class="btn btn-light" title="Opens the presentation in a new tab — drag it to your second screen">
-            &#8983; Open display tab
-          </button>
-        </div>
+        <span class="pill pace-pill" id="pacePill">&hellip;</span>
       </header>
 
-      <!-- Live control bar for whatever is currently playing -->
-      <section id="controlBar" class="card control-bar" hidden>
-        <div class="control-now">
-          <span class="status-dot" id="statusDot"></span>
-          <div class="control-meta">
-            <strong id="nowTitle">&mdash;</strong>
-            <span id="nowStatus" class="control-substatus">Idle</span>
-          </div>
-        </div>
-        <div class="control-progress">
-          <div class="slide-counter"><span id="slideNum">0</span> / <span id="slideTotal">0</span></div>
-          <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
-        </div>
-        <div class="control-buttons">
-          <button id="btnPrev" class="btn btn-round" title="Previous slide">&#8249;</button>
-          <button id="btnPlayPause" class="btn btn-light">Pause</button>
-          <button id="btnNext" class="btn btn-round" title="Next slide">&#8250;</button>
-          <button id="btnRestart" class="btn btn-ghost" title="Restart from the countdown">&#8635;</button>
-          <button id="btnStop" class="btn btn-danger">Stop</button>
-        </div>
-      </section>
+      <!-- Upload / start -->
+      <section class="card">
+        <h2 class="pixel-title">Your presentation</h2>
+        <p class="field-note" style="margin-top:0">
+          Choose your PDF and press start. The slides advance automatically at the set pace &mdash;
+          practise speaking along. Your file stays in your browser and is never uploaded.
+        </p>
 
-      <!-- Upload -->
-      <section class="card upload-card">
-        <h2 class="pixel-title">Upload</h2>
-        <form id="uploadForm">
-          <div class="upload-grid">
-            <label class="field">
-              <span>Seconds per slide</span>
-              <input type="number" id="defaultSeconds" name="defaultSeconds" min="0.5" step="0.5" value="10" required />
-            </label>
-            <label class="field file-field" id="dropZone">
-              <span>PDF files</span>
-              <input type="file" id="file" name="file" accept="application/pdf,.pdf" multiple required />
-              <span class="file-hint" id="fileHint">Drop PDFs here or click to browse</span>
-            </label>
-          </div>
-          <p class="field-note">Select several PDFs at once &mdash; each becomes its own presentation, titled after its file name.</p>
-          <div class="upload-actions">
-            <button type="submit" class="btn btn-primary" id="uploadBtn">Upload</button>
-            <span id="uploadMsg" class="upload-msg"></span>
-          </div>
-        </form>
-      </section>
+        <label class="field file-field" id="dropZone" style="margin-top:1.1rem">
+          <span>Your PDF</span>
+          <input type="file" id="file" accept="application/pdf,.pdf" required />
+          <span class="file-hint" id="fileHint">Drop your PDF here or click to browse</span>
+        </label>
 
-      <!-- Library -->
-      <section class="card library-card">
-        <div class="card-head">
-          <h2 class="pixel-title">Library</h2>
-          <span class="pill" id="countPill">0</span>
+        <div id="deckInfo" class="deck-info" hidden>
+          <div class="deck-info-row">
+            <span id="deckName" class="deck-name">&mdash;</span>
+            <span id="deckMeta" class="pres-meta">&mdash;</span>
+          </div>
         </div>
-        <div id="library" class="library"></div>
-        <p id="emptyState" class="empty">No presentations yet. Upload a PDF to get started.</p>
+
+        <div class="upload-actions" style="margin-top:1.2rem">
+          <button id="startBtn" class="btn btn-primary" disabled>Start practice</button>
+          <span id="setupMsg" class="upload-msg"></span>
+        </div>
       </section>
     </div>
 
-    <!-- Per-slide timing editor -->
-    <div id="editorBackdrop" class="modal-backdrop" hidden>
-      <div class="modal" role="dialog" aria-modal="true">
-        <div class="modal-head">
-          <h2 id="editorTitle" class="pixel-title">Edit timings</h2>
-          <button id="editorClose" class="btn btn-round" aria-label="Close">&times;</button>
-        </div>
-        <div class="modal-toolbar">
-          <label class="field inline">
-            <span>Title</span>
-            <input type="text" id="editName" />
-          </label>
-          <label class="field inline">
-            <span>Apply to all (s)</span>
-            <input type="number" id="applyAll" min="0.5" step="0.5" />
-          </label>
-          <button id="applyAllBtn" class="btn btn-ghost">Apply</button>
-        </div>
-        <div id="slideGrid" class="slide-grid"></div>
-        <div class="modal-foot">
-          <button id="editorSave" class="btn btn-primary">Save changes</button>
+    <!-- Practice stage -->
+    <div id="stage" class="stage practice-stage" hidden>
+      <canvas id="slideCanvas" class="slide-canvas"></canvas>
+
+      <!-- Countdown -->
+      <div id="countdownScreen" class="overlay countdown-screen" hidden>
+        <svg class="countdown-ring" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="54" />
+          <circle id="ringProgress" class="ring-progress" cx="60" cy="60" r="54" />
+        </svg>
+        <div id="countdownNumber" class="countdown-number">3</div>
+      </div>
+
+      <!-- Finished -->
+      <div id="doneScreen" class="overlay countdown-screen" hidden>
+        <div class="idle-inner">
+          <div class="idle-mark">&#127937;</div>
+          <h1>Practice complete</h1>
+          <p id="doneSummary">&mdash;</p>
+          <div class="done-actions">
+            <button id="againBtn" class="btn btn-primary">Practise again</button>
+            <button id="doneExitBtn" class="btn btn-ghost">Choose another deck</button>
+          </div>
         </div>
       </div>
+
+      <!-- HUD -->
+      <div class="practice-hud">
+        <div class="hud-left">
+          <span class="hud-slide"><span id="hudSlide">0</span> / <span id="hudTotal">0</span></span>
+        </div>
+        <div class="hud-center">
+          <span id="hudElapsed" class="hud-time">0:00</span>
+          <span class="hud-sep">/</span>
+          <span id="hudTarget" class="hud-time hud-muted">0:00</span>
+        </div>
+        <div class="hud-right">
+          <button id="pPrev" class="btn btn-round" title="Previous slide">&#8249;</button>
+          <button id="pPlay" class="btn btn-light">Pause</button>
+          <button id="pNext" class="btn btn-round" title="Next slide">&#8250;</button>
+          <button id="pRestart" class="btn btn-ghost" title="Restart">&#8635;</button>
+          <button id="pExit" class="btn btn-danger">Exit</button>
+        </div>
+      </div>
+
+      <div id="stageProgress" class="stage-progress"><div id="stageProgressFill"></div></div>
+      <button id="fsBtn" class="fs-btn" title="Toggle fullscreen">&#9974;</button>
     </div>
 
-    <script type="module" src="/js/admin.js"></script>
+    <script type="module" src="/js/practice.js"></script>
   </body>
 </html>

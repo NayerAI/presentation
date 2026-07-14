@@ -1,0 +1,20 @@
+services:
+  presentations:
+    build: .
+    env_file: app.env
+    restart: unless-stopped
+    # All persistent data (presentation metadata + uploaded PDFs) is written
+    # under /data inside the container, which is bind-mounted to ./data on the
+    # host. Backing up is just copying ./data somewhere else.
+    volumes:
+      - ./data:/data/
+    # The app listens on :8000 inside the network. A Caddy reverse proxy on the
+    # shared caddy_net terminates TLS and proxies to presentations:8000.
+    expose:
+      - "8000"
+    networks:
+      - caddy_net
+
+networks:
+  caddy_net:
+    external: true

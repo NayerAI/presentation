@@ -1,0 +1,6 @@
+node_modules/
+# All persistent data (metadata + uploaded PDFs) lives here and is bind-mounted
+# to /data in the container. Copying this directory elsewhere is a full backup.
+data/
+*.log
+.DS_Store

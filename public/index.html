@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Presentation Console</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9E%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body class="admin">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">▶</span>
+        <div>
+          <h1>Presentation Console</h1>
+          <p class="subtitle">Upload, schedule &amp; run auto-advancing slide decks</p>
+        </div>
+      </div>
+      <button id="openDisplay" class="btn btn-ghost" title="Opens the presentation in a new tab — drag it to your second screen">
+        ⧉ Open display tab
+      </button>
+    </header>
+
+    <!-- Live control bar for whatever is currently playing -->
+    <section id="controlBar" class="control-bar" hidden>
+      <div class="control-now">
+        <span class="status-dot" id="statusDot"></span>
+        <div class="control-meta">
+          <strong id="nowTitle">—</strong>
+          <span id="nowStatus" class="control-substatus">Idle</span>
+        </div>
+      </div>
+      <div class="control-progress">
+        <div class="slide-counter"><span id="slideNum">0</span> / <span id="slideTotal">0</span></div>
+        <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+      </div>
+      <div class="control-buttons">
+        <button id="btnPrev" class="btn btn-round" title="Previous slide">‹</button>
+        <button id="btnPlayPause" class="btn btn-primary">Pause</button>
+        <button id="btnNext" class="btn btn-round" title="Next slide">›</button>
+        <button id="btnRestart" class="btn btn-ghost" title="Restart from the countdown">↻</button>
+        <button id="btnStop" class="btn btn-danger">Stop</button>
+      </div>
+    </section>
+
+    <main class="layout">
+      <!-- Upload -->
+      <section class="card upload-card">
+        <h2>Upload a presentation</h2>
+        <form id="uploadForm">
+          <label class="field">
+            <span>Title</span>
+            <input type="text" id="title" name="title" placeholder="e.g. Q3 All-Hands" />
+          </label>
+          <label class="field">
+            <span>Seconds per slide</span>
+            <input type="number" id="defaultSeconds" name="defaultSeconds" min="0.5" step="0.5" value="10" required />
+          </label>
+          <label class="field file-field" id="dropZone">
+            <span>PDF file</span>
+            <input type="file" id="file" name="file" accept="application/pdf,.pdf" required />
+            <span class="file-hint" id="fileHint">Drop a PDF here or click to browse</span>
+          </label>
+          <div class="upload-actions">
+            <button type="submit" class="btn btn-primary" id="uploadBtn">Upload</button>
+            <span id="uploadMsg" class="upload-msg"></span>
+          </div>
+        </form>
+      </section>
+
+      <!-- Library -->
+      <section class="card library-card">
+        <div class="card-head">
+          <h2>Library</h2>
+          <span class="pill" id="countPill">0</span>
+        </div>
+        <div id="library" class="library"></div>
+        <p id="emptyState" class="empty">No presentations yet. Upload a PDF to get started.</p>
+      </section>
+    </main>
+
+    <!-- Per-slide timing editor -->
+    <div id="editorBackdrop" class="modal-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <div class="modal-head">
+          <h2 id="editorTitle">Edit timings</h2>
+          <button id="editorClose" class="btn btn-round" aria-label="Close">×</button>
+        </div>
+        <div class="modal-toolbar">
+          <label class="field inline">
+            <span>Title</span>
+            <input type="text" id="editName" />
+          </label>
+          <label class="field inline">
+            <span>Apply to all (s)</span>
+            <input type="number" id="applyAll" min="0.5" step="0.5" />
+          </label>
+          <button id="applyAllBtn" class="btn btn-ghost">Apply</button>
+        </div>
+        <div id="slideGrid" class="slide-grid"></div>
+        <div class="modal-foot">
+          <button id="editorSave" class="btn btn-primary">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/js/admin.js"></script>
+  </body>
+</html>

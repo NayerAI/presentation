@@ -41,6 +41,26 @@ async function savePresentations() {
 
 const findPresentation = (id) => presentations.find((p) => p.id === id);
 
+/* Display preferences (e.g. whether the presentation view shows the
+ * auto-advance progress bar). Persisted so they survive restarts and are
+ * part of the ./data backup. */
+const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const DEFAULT_SETTINGS = { showProgress: true };
+
+function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+let settings = loadSettings();
+
+async function saveSettings() {
+  await fsp.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2));
+}
+
 /* Best-effort page count straight from the PDF bytes. The admin page
  * normally supplies an accurate count via pdf.js; this is only a
  * fallback so an upload never ends up with zero slides. */
@@ -104,6 +124,7 @@ function publicState() {
     phaseEndsAt: playback.phaseEndsAt,
     phaseDurationMs: playback.phaseDurationMs,
     remainingMs: playback.remainingMs,
+    showProgress: settings.showProgress,
   };
 }
 
@@ -267,11 +288,13 @@ app.use(express.json());
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-  filename: (req, file, cb) => cb(null, `${req.uploadId}.pdf`),
+  // Each uploaded file gets its own id; the id is recovered from the
+  // filename in the route handler.
+  filename: (req, file, cb) => cb(null, `${crypto.randomUUID()}.pdf`),
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 200 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024, files: 100 },
   fileFilter: (req, file, cb) => {
     if (file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf')) {
       cb(null, true);
@@ -280,12 +303,6 @@ const upload = multer({
     }
   },
 });
-
-// Assign an id before multer writes the file so the filename is stable.
-function assignUploadId(req, res, cbNext) {
-  req.uploadId = crypto.randomUUID();
-  cbNext();
-}
 
 // Static assets
 app.use(express.static(path.join(__dirname, 'public')));
@@ -306,35 +323,51 @@ app.get('/api/presentations/:id', (req, res) => {
   res.json(p);
 });
 
-app.post('/api/presentations', assignUploadId, upload.single('file'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No PDF uploaded' });
+// Upload one or many PDFs in a single request. Each file becomes its own
+// presentation, titled after its file name. The admin page supplies a
+// per-file page count (via pdf.js) and per-file slide durations as JSON
+// arrays aligned with the file order.
+app.post('/api/presentations', upload.array('files', 100), async (req, res) => {
+  const files = req.files || [];
+  if (!files.length) return res.status(400).json({ error: 'No PDF uploaded' });
 
   const defaultSeconds = Math.max(0.5, Number(req.body.defaultSeconds) || 10);
-  let numPages = parseInt(req.body.numPages, 10);
-  if (!Number.isFinite(numPages) || numPages < 1) {
-    numPages = countPagesFromBytes(await fsp.readFile(req.file.path)) || 1;
-  }
-
-  let slideSeconds;
-  try {
-    slideSeconds = JSON.parse(req.body.slideSeconds);
-  } catch {
-    slideSeconds = null;
-  }
-  slideSeconds = sanitizeSlideSeconds(slideSeconds, numPages, defaultSeconds);
-
-  const presentation = {
-    id: req.uploadId,
-    name: (req.body.name || '').trim() || req.file.originalname.replace(/\.pdf$/i, '') || 'Untitled',
-    originalFilename: req.file.originalname,
-    numPages,
-    defaultSeconds,
-    slideSeconds,
-    createdAt: Date.now(),
+  const parseArray = (raw) => {
+    try {
+      const v = JSON.parse(raw);
+      return Array.isArray(v) ? v : [];
+    } catch {
+      return [];
+    }
   };
-  presentations.push(presentation);
+  const numPagesList = parseArray(req.body.numPages);
+  const slideSecondsList = parseArray(req.body.slideSeconds);
+
+  const created = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const id = path.basename(file.filename, '.pdf');
+
+    let numPages = parseInt(numPagesList[i], 10);
+    if (!Number.isFinite(numPages) || numPages < 1) {
+      numPages = countPagesFromBytes(await fsp.readFile(file.path)) || 1;
+    }
+    const slideSeconds = sanitizeSlideSeconds(slideSecondsList[i], numPages, defaultSeconds);
+
+    const presentation = {
+      id,
+      name: file.originalname.replace(/\.pdf$/i, '') || 'Untitled',
+      originalFilename: file.originalname,
+      numPages,
+      defaultSeconds,
+      slideSeconds,
+      createdAt: Date.now() + i,
+    };
+    presentations.push(presentation);
+    created.push(presentation);
+  }
   await savePresentations();
-  res.status(201).json(presentation);
+  res.status(201).json(created);
 });
 
 app.put('/api/presentations/:id', async (req, res) => {
@@ -382,6 +415,16 @@ app.get('/api/presentations/:id/file', (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(p.originalFilename)}"`);
   res.sendFile(file);
+});
+
+/* --- Display settings --------------------------------------------- */
+app.put('/api/settings', async (req, res) => {
+  if (typeof req.body.showProgress === 'boolean') {
+    settings.showProgress = req.body.showProgress;
+  }
+  await saveSettings();
+  broadcast();
+  res.json(settings);
 });
 
 /* --- Playback control --------------------------------------------- */

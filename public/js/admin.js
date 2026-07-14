@@ -41,10 +41,13 @@ const uploadMsg = $('#uploadMsg');
 const uploadBtn = $('#uploadBtn');
 
 fileInput.addEventListener('change', () => {
-  const f = fileInput.files[0];
-  fileHint.textContent = f ? f.name : 'Drop a PDF here or click to browse';
-  if (f && !$('#title').value.trim()) {
-    $('#title').value = f.name.replace(/\.pdf$/i, '');
+  const files = [...fileInput.files];
+  if (files.length === 0) {
+    fileHint.textContent = 'Drop PDFs here or click to browse';
+  } else if (files.length === 1) {
+    fileHint.textContent = files[0].name;
+  } else {
+    fileHint.textContent = `${files.length} PDFs selected`;
   }
 });
 
@@ -75,42 +78,46 @@ function setMsg(text, kind = '') {
 
 uploadForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const file = fileInput.files[0];
-  if (!file) return setMsg('Choose a PDF first', 'error');
+  const files = [...fileInput.files];
+  if (!files.length) return setMsg('Choose one or more PDFs first', 'error');
 
   const defaultSeconds = Math.max(0.5, Number($('#defaultSeconds').value) || 10);
-  const name = $('#title').value.trim() || file.name.replace(/\.pdf$/i, '');
+  const plural = files.length > 1 ? 's' : '';
 
   uploadBtn.disabled = true;
-  setMsg('Reading PDF…');
+  setMsg(`Reading ${files.length} PDF${plural}…`);
 
-  // Read the page count locally so the server always has an accurate total.
-  let numPages = 0;
-  try {
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    numPages = pdf.numPages;
-  } catch (err) {
-    console.warn('Could not read PDF locally, server will estimate', err);
+  // Read each page count locally so the server always has accurate totals.
+  const numPagesList = [];
+  const slideSecondsList = [];
+  for (const file of files) {
+    let numPages = 0;
+    try {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      numPages = pdf.numPages;
+    } catch (err) {
+      console.warn('Could not read PDF locally, server will estimate', file.name, err);
+    }
+    numPagesList.push(numPages);
+    slideSecondsList.push(numPages ? Array.from({ length: numPages }, () => defaultSeconds) : []);
   }
 
-  const slideSeconds = numPages ? Array.from({ length: numPages }, () => defaultSeconds) : [];
-
   const fd = new FormData();
-  fd.append('file', file);
-  fd.append('name', name);
+  for (const file of files) fd.append('files', file); // order matches the arrays below
   fd.append('defaultSeconds', String(defaultSeconds));
-  fd.append('numPages', String(numPages));
-  fd.append('slideSeconds', JSON.stringify(slideSeconds));
+  fd.append('numPages', JSON.stringify(numPagesList));
+  fd.append('slideSeconds', JSON.stringify(slideSecondsList));
 
-  setMsg('Uploading…');
+  setMsg(`Uploading ${files.length} file${plural}…`);
   try {
     const res = await fetch('/api/presentations', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Upload failed');
-    setMsg('Uploaded ✓', 'success');
+    const n = Array.isArray(data) ? data.length : 1;
+    setMsg(`Uploaded ${n} presentation${n > 1 ? 's' : ''} ✓`, 'success');
     uploadForm.reset();
-    fileHint.textContent = 'Drop a PDF here or click to browse';
+    fileHint.textContent = 'Drop PDFs here or click to browse';
     await refreshLibrary();
   } catch (err) {
     setMsg(err.message, 'error');
@@ -270,6 +277,16 @@ const slideNum = $('#slideNum');
 const slideTotal = $('#slideTotal');
 const progressFill = $('#progressFill');
 const btnPlayPause = $('#btnPlayPause');
+const progressToggle = $('#progressToggle');
+
+// Toggle the auto-advance progress bar on the presentation display.
+progressToggle.addEventListener('change', () => {
+  fetch('/api/settings', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ showProgress: progressToggle.checked }),
+  });
+});
 
 let currentState = { status: 'idle' };
 let getOffset = () => 0;
@@ -302,6 +319,11 @@ const STATUS_LABEL = {
 function applyState(state, offsetFn) {
   currentState = state;
   getOffset = offsetFn;
+
+  // Reflect the display's progress-bar preference (kept in sync across tabs).
+  if (typeof state.showProgress === 'boolean' && document.activeElement !== progressToggle) {
+    progressToggle.checked = state.showProgress;
+  }
 
   const active = state.status !== 'idle';
   controlBar.hidden = !active;

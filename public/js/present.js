@@ -97,7 +97,8 @@ function applyState(state, offsetFn) {
   if (inCountdown && prevStatus !== 'countdown') lastCountdownShown = null;
 
   pausedBadge.hidden = state.status !== 'paused';
-  stageProgress.hidden = !(state.status === 'playing' || state.status === 'paused');
+  const playingOrPaused = state.status === 'playing' || state.status === 'paused';
+  stageProgress.hidden = !(playingOrPaused && state.showProgress !== false);
 
   if (isIdle) {
     activePdfId = null;

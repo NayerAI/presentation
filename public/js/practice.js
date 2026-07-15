@@ -1,6 +1,15 @@
 import * as pdfjsLib from '/vendor/pdfjs/legacy/build/pdf.min.mjs';
+import { launchConfetti } from './confetti.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/legacy/build/pdf.worker.min.mjs';
+
+let stopConfetti = null;
+function clearConfetti() {
+  if (stopConfetti) {
+    stopConfetti();
+    stopConfetti = null;
+  }
+}
 
 const $ = (s) => document.getElementById(s);
 
@@ -148,6 +157,7 @@ function fmt(ms) {
 
 function startPractice() {
   if (!pdfDoc) return;
+  clearConfetti();
   setup.hidden = true;
   stage.hidden = false;
   doneScreen.hidden = true;
@@ -190,6 +200,8 @@ function finish() {
     P.totalSlides * P.perSlideMs
   )} (${over >= 0 ? '+' : '−'}${fmt(Math.abs(over))})`;
   doneScreen.hidden = false;
+  clearConfetti();
+  stopConfetti = launchConfetti(doneScreen);
 }
 
 function frame(ts) {
@@ -259,6 +271,7 @@ function togglePlay() {
 }
 function exitPractice() {
   P.status = 'idle';
+  clearConfetti();
   stage.hidden = true;
   setup.hidden = false;
 }

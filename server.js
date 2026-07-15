@@ -136,6 +136,15 @@ const playback = {
 
 let tickTimer = null;
 
+// Bumped whenever the library changes (add / edit / delete) so admin tabs can
+// live-refresh over SSE without a manual reload.
+let libraryRev = 0;
+
+function bumpLibrary() {
+  libraryRev++;
+  broadcast();
+}
+
 function currentPresentation() {
   return playback.presentationId ? findPresentation(playback.presentationId) : null;
 }
@@ -161,6 +170,7 @@ function publicState() {
     phaseDurationMs: playback.phaseDurationMs,
     remainingMs: playback.remainingMs,
     showProgress: settings.showProgress,
+    libraryRev,
   };
 }
 
@@ -409,6 +419,11 @@ app.post('/api/presentations', requireAdmin, upload.array('files', 100), async (
     const file = files[i];
     const id = path.basename(file.filename, '.pdf');
 
+    // multer (busboy) exposes the multipart filename decoded as latin1, so
+    // UTF-8 names with umlauts (ä ö ü ß …) arrive mojibaked. Re-decode the raw
+    // bytes as UTF-8 to recover the original name. (A no-op for plain ASCII.)
+    const originalName = Buffer.from(file.originalname, 'latin1').toString('utf8');
+
     let numPages = parseInt(numPagesList[i], 10);
     if (!Number.isFinite(numPages) || numPages < 1) {
       numPages = countPagesFromBytes(await fsp.readFile(file.path)) || 1;
@@ -417,8 +432,8 @@ app.post('/api/presentations', requireAdmin, upload.array('files', 100), async (
 
     const presentation = {
       id,
-      name: file.originalname.replace(/\.pdf$/i, '') || 'Untitled',
-      originalFilename: file.originalname,
+      name: originalName.replace(/\.pdf$/i, '') || 'Untitled',
+      originalFilename: originalName,
       numPages,
       defaultSeconds,
       slideSeconds,
@@ -428,6 +443,7 @@ app.post('/api/presentations', requireAdmin, upload.array('files', 100), async (
     created.push(presentation);
   }
   await savePresentations();
+  bumpLibrary();
   res.status(201).json(created);
 });
 
@@ -449,8 +465,8 @@ app.put('/api/presentations/:id', requireAdmin, async (req, res) => {
   // If this presentation is currently active, keep the live total in sync.
   if (playback.presentationId === p.id) {
     playback.totalSlides = p.numPages;
-    broadcast();
   }
+  bumpLibrary();
   res.json(p);
 });
 
@@ -465,6 +481,7 @@ app.delete('/api/presentations/:id', requireAdmin, async (req, res) => {
   fs.promises
     .unlink(path.join(UPLOAD_DIR, `${removed.id}.pdf`))
     .catch(() => {});
+  bumpLibrary();
   res.json({ ok: true });
 });
 

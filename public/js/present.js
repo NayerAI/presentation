@@ -1,5 +1,6 @@
 import * as pdfjsLib from '/vendor/pdfjs/legacy/build/pdf.min.mjs';
 import { connectPlayback, progressInfo } from './sync.js';
+import { launchConfetti } from './confetti.js';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = '/vendor/pdfjs/legacy/build/pdf.worker.min.mjs';
 
@@ -9,10 +10,13 @@ const idleScreen = document.getElementById('idleScreen');
 const countdownScreen = document.getElementById('countdownScreen');
 const countdownNumber = document.getElementById('countdownNumber');
 const ringProgress = document.getElementById('ringProgress');
+const finishScreen = document.getElementById('finishScreen');
 const pausedBadge = document.getElementById('pausedBadge');
 const stageProgress = document.getElementById('stageProgress');
 const stageProgressFill = document.getElementById('stageProgressFill');
 const fsBtn = document.getElementById('fsBtn');
+
+let stopConfetti = null;
 
 const RING_CIRCUMFERENCE = 2 * Math.PI * 54; // r = 54 in the SVG
 
@@ -99,6 +103,16 @@ function applyState(state, offsetFn) {
   pausedBadge.hidden = state.status !== 'paused';
   const playingOrPaused = state.status === 'playing' || state.status === 'paused';
   stageProgress.hidden = !(playingOrPaused && state.showProgress !== false);
+
+  // Final "Thank you!" slide with confetti once the deck finishes.
+  const finished = state.status === 'finished';
+  finishScreen.hidden = !finished;
+  if (finished && !stopConfetti) {
+    stopConfetti = launchConfetti(finishScreen);
+  } else if (!finished && stopConfetti) {
+    stopConfetti();
+    stopConfetti = null;
+  }
 
   if (isIdle) {
     activePdfId = null;

@@ -316,9 +316,18 @@ const STATUS_LABEL = {
   finished: 'Finished',
 };
 
+let lastLibraryRev = null;
+
 function applyState(state, offsetFn) {
   currentState = state;
   getOffset = offsetFn;
+
+  // Live-refresh the library whenever it changes anywhere (another tab, a new
+  // upload, an edit or a delete) — no manual reload needed.
+  if (typeof state.libraryRev === 'number') {
+    if (lastLibraryRev !== null && state.libraryRev !== lastLibraryRev) refreshLibrary();
+    lastLibraryRev = state.libraryRev;
+  }
 
   // Reflect the display's progress-bar preference (kept in sync across tabs).
   if (typeof state.showProgress === 'boolean' && document.activeElement !== progressToggle) {

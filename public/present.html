@@ -3,9 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Presentation</title>
+    <title>RAID · Presentation</title>
     <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="icon" href="/img/logo.png" />
+    <link rel="icon" href="/img/favicon.png" />
   </head>
   <body class="stage-body">
     <div id="stage" class="stage">
@@ -15,7 +15,7 @@
       <!-- Idle / waiting screen -->
       <div id="idleScreen" class="overlay idle-screen">
         <div class="idle-inner">
-          <div class="idle-mark">🖥️</div>
+          <div class="idle-logo" data-neon="RAID" data-neon-sub="Presentations" data-neon-animate></div>
           <h1>Ready for your presentation</h1>
           <p>Keep this tab open on your presentation screen. It will start automatically.</p>
         </div>
@@ -33,8 +33,7 @@
       <!-- Final "Thank you!" slide with confetti -->
       <div id="finishScreen" class="overlay finish-screen" hidden>
         <div class="finish-inner">
-          <div class="finish-emoji">🎉</div>
-          <h1 class="pixel-title">Thank you!</h1>
+          <h1 class="finish-title" data-neon="THANK YOU!" data-neon-animate aria-label="Thank you!"></h1>
         </div>
       </div>
 
@@ -48,6 +47,7 @@
       <button id="fsBtn" class="fs-btn" title="Toggle fullscreen">⛶</button>
     </div>
 
+    <script type="module" src="/js/neon.js"></script>
     <script type="module" src="/js/present.js"></script>
   </body>
 </html>

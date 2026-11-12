@@ -3,20 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Admin · Presentation Console</title>
+    <title>Admin · RAID Presentations</title>
     <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="icon" href="/img/logo.png" />
+    <link rel="icon" href="/img/favicon.png" />
   </head>
   <body class="admin">
     <!-- Password wall -->
     <div id="loginGate" class="login-gate" hidden>
       <form id="loginForm" class="card login-card">
-        <div class="brand">
-          <img class="brand-mark" src="/img/logo.png" alt="AUTODECK" />
-          <div>
-            <h1 class="pixel-title">Admin access</h1>
-            <p class="subtitle">Enter the password to manage presentations</p>
-          </div>
+        <div class="login-logo" data-neon="RAID" data-neon-small data-neon-sub="Presentations"></div>
+        <div>
+          <h1 class="pixel-title">Admin access</h1>
+          <p class="subtitle">Enter the password to manage presentations</p>
         </div>
         <label class="field">
           <span>Password</span>
@@ -33,9 +31,9 @@
       <!-- Header -->
       <header class="card brand-card">
         <div class="brand">
-          <img class="brand-mark" src="/img/logo.png" alt="AUTODECK" />
+          <div class="brand-logo" data-neon="RAID" data-neon-small aria-label="RAID"></div>
           <div>
-            <h1 class="pixel-title">AUTODECK</h1>
+            <h1 class="pixel-title">Presentations</h1>
             <p class="subtitle">Admin console</p>
           </div>
         </div>
@@ -153,6 +151,7 @@
       </div>
     </div>
 
+    <script type="module" src="/js/neon.js"></script>
     <script type="module" src="/js/admin.js"></script>
   </body>
 </html>

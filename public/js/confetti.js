@@ -18,7 +18,7 @@ export function launchConfetti(container) {
   const onResize = () => resize();
   window.addEventListener('resize', onResize);
 
-  const colors = ['#6f9bd1', '#6fae95', '#d8b06a', '#e0895c', '#d9756a', '#ffffff'];
+  const colors = ['#ff4fd8', '#4ff3ff', '#f2f65a', '#9b5cff', '#c2f286', '#f7f2fa'];
   const count = Math.max(80, Math.min(260, Math.round(W / 6)));
 
   const spawn = (fromTop) => ({

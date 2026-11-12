@@ -3,22 +3,19 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Practice · Presentation Timing</title>
+    <title>Practice · RAID Presentations</title>
     <link rel="stylesheet" href="/css/styles.css" />
-    <link rel="icon" href="/img/logo.png" />
+    <link rel="icon" href="/img/favicon.png" />
   </head>
   <body class="admin">
     <div class="page" id="setup">
       <!-- Header -->
-      <header class="card brand-card">
-        <div class="brand">
-          <img class="brand-mark" src="/img/logo.png" alt="AUTODECK" />
-          <div>
-            <h1 class="pixel-title">AUTODECK &mdash; Practice</h1>
-            <p class="subtitle">Rehearse your talk against the set pace</p>
-          </div>
+      <header class="hero">
+        <h1 class="hero-title" data-neon="RAID" data-neon-sub="Presentation practice" data-neon-animate aria-label="RAID presentation practice"></h1>
+        <div class="hero-meta">
+          <span class="hud-label">Rehearse your talk against the set pace</span>
+          <span class="pill pace-pill" id="pacePill">&hellip;</span>
         </div>
-        <span class="pill pace-pill" id="pacePill">&hellip;</span>
       </header>
 
       <!-- Upload / start -->
@@ -65,8 +62,7 @@
       <!-- Finished -->
       <div id="doneScreen" class="overlay finish-screen" hidden>
         <div class="finish-inner idle-inner">
-          <div class="finish-emoji">&#127881;</div>
-          <h1 class="pixel-title">Thank you!</h1>
+          <h1 class="finish-title" data-neon="THANK YOU!" data-neon-animate aria-label="Thank you!"></h1>
           <p id="doneSummary">&mdash;</p>
           <div class="done-actions">
             <button id="againBtn" class="btn btn-primary">Practise again</button>
@@ -98,6 +94,7 @@
       <button id="fsBtn" class="fs-btn" title="Toggle fullscreen">&#9974;</button>
     </div>
 
+    <script type="module" src="/js/neon.js"></script>
     <script type="module" src="/js/practice.js"></script>
   </body>
 </html>

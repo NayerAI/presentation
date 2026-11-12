@@ -37,9 +37,10 @@ A small self-hosted web app with two sides:
   and a toggle for the display's progress bar — all synced over Server-Sent
   Events.
 
-The interface uses a retro pixel-terminal look built with the bundled,
-open-source (SIL OFL) fonts **VT323** and **Silkscreen** — no external
-CDN, so it works fully offline.
+The interface uses the RAID competition look (dark ink background, neon
+chromatic frames and neon-tube titles, see `public/js/neon.js`) with the
+bundled, open-source (SIL OFL) fonts **Archivo** and **IBM Plex Mono** — no
+external CDN, so it works fully offline.
 
 ## Running it
 
